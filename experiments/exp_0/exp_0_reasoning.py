@@ -1,6 +1,4 @@
 
-
-
 """
 exp_0_reasoning.py
 
@@ -16,7 +14,6 @@ This script processes AWS IAM policy JSON files by:
 Usage:
   python3 exp_0_reasoning.py --model <gemini|grok|deepseek|gpt|claude>
 """
-
 
 import os
 import sys
@@ -43,7 +40,9 @@ def slugify(text: str) -> str:
 
 
 
-RESULT_DIR         = Path("Exp-1")
+RESULT_DIR         = Path("exp_0") # Directory to save results, change to your desired location
+POLICY_MODEL      = None # Will be set by command line argument
+MODEL_SLUG        = None # Slugified version of POLICY_MODEL for file naming
 RESULT_DIR.mkdir(parents=True, exist_ok=True)
 # result_table_path and progress_file_path will be defined after parsing model
 result_table_path  = None
