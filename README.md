@@ -1,6 +1,6 @@
 # Verifying LLM Generated Policies
 
-This repository contains the experimental code and data accompanying our research paper on verifying LLM-generated policies.
+This repository contains the experimental code and data accompanying our research paper verifying LLM-generated policies.
 
 ## Overview
 
@@ -13,6 +13,7 @@ The experiments in this repository evaluate various large language models' perfo
 ## Repository Structure
 
 - `baseline/` - Baseline comparison experiments and visualization scripts
+- `experiments` - scripts for exp-1 and exp-2
 - `CPCA/` - CPCA-related experimental code
 - `ABC/` - ABC framework experiments
 - `*.py` - Various analysis and data processing scripts
@@ -20,7 +21,7 @@ The experiments in this repository evaluate various large language models' perfo
 
 ## Usage
 
-This code is provided for reproducibility and further research. Please refer to the accompanying paper for detailed methodology and results.
+This code is provided for reproducibility and further research. Please take a look at the attached paper for detailed methodology and results.
 
 ## Citation
 
