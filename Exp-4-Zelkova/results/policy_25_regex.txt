@@ -1,0 +1,1 @@
+arn:aws:s3:::(?:mybucket/home/\$\{aws:username\}/|[^a-ceghiklmnorstuwyz\x00-\x1F]|[\u0100-\u0262])?

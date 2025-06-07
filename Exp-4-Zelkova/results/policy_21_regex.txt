@@ -1,0 +1,1 @@
+^(arn:aAB|arn:aws:s3:::mybucket/|VWXYZ\[\]|\\^|[MNO]|a[\u0000-\u0277]?)?$

@@ -1,0 +1,1 @@
+^(arn:aws:ec2:ap-southeast-1b:639080490749:instance/i-0899dfec6a516710a|[A-DFGHIJKLMNOPQRTUVWXYZ\[\\\]^_`gjklqvxyz{|}~]|[ -ÿ]|\\u\{[1-9a-f][0-9a-f]{2}\})?$

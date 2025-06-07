@@ -1,0 +1,1 @@
+arn:aws:s3:::files\.mydomain\.com/[\x00-\u{249}]?

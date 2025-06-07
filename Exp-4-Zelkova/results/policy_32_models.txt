@@ -1,0 +1,2 @@
+"arn:aws:s3:::examplebucket/test"
+"arn:aws:s3:::examplebucket"

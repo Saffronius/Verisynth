@@ -1,0 +1,1 @@
+arn:aws:s3:::bluebolt/Company Shared/(?:[ -\u{284}]|)

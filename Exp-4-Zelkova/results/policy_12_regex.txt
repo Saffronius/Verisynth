@@ -1,0 +1,1 @@
+arn:aws:s3:::bucket1/(?:EFGHI|[K-Z\[\\\]^_`hqvz{|}~\u0000-\u00ff\u0100-\u0252]|)

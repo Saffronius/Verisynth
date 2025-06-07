@@ -1,0 +1,1 @@
+arn:aws:s3:::(?:(?:examplebucket\/folder\/?)|[K-Z\\[\\\]^_`hjqvyz{|}~\u0000-\u024f¡-ÿ ])?

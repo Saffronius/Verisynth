@@ -1,0 +1,1 @@
+^$|^[A-Z\[\\\]^_`bdfghjklopquvwxyz{|}~\x00-\x1F\x7F-\u023C]$

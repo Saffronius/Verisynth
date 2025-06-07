@@ -1,0 +1,1 @@
+arn:aws:s3:::(?:(?:my-bucket/home/Jas/)?|[A-Z\[\\\^_`dfhjpqvxz{|}~\u0020-\u0259])?

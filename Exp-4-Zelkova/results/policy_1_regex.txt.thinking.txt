@@ -1,0 +1,895 @@
+I need to analyze these strings and come up with a regular expression that matches all of them. Let me carefully examine the pattern:
+
+First, I notice that all strings begin with "arn:aws:ec2:" so that's a constant prefix.
+
+Then there appears to be a variable part that could be empty or a single character (like A, C, H, etc.), followed by a colon.
+
+After that, there might be another value (like I in one example) or it could be empty, followed by another colon.
+
+Then there's either "B:" or just another colon, and then either "instance/:" or "volume/" followed by an optional character.
+
+Let me analyze more systematically:
+
+1. Fixed prefix: "arn:aws:ec2:"
+2. Variable region part: Could be any character or empty
+3. Colon
+4. Account ID part: Could be any character or empty
+5. Colon
+6. Resource ID part: Could be empty or some value
+7. Colon 
+8. Resource type: Either "instance/:" or "volume/" possibly followed by a character
+
+Looking at more examples, it seems like the structure is:
+"arn:aws:ec2:[region]:[account]:volume/[id]" or 
+"arn:aws:ec2:[region]:[account]:instance/[id]"
+
+Where [region], [account], and [id] can be optional or have various values.
+
+Let me check some specific examples:
+- "arn:aws:ec2:A::B:instance/:"
+  - Region: A
+  - Account: empty
+  - Resource ID: B
+  - Resource type: instance/:
+
+- "arn:aws:ec2:C:::instance/:"
+  - Region: C
+  - Account: empty
+  - Resource ID: empty
+  - Resource type: instance/:
+
+- "arn:aws:ec2:::instance/"
+  - Region: empty
+  - Account: empty
+  - Resource ID: empty
+  - Resource type: instance/
+
+- "arn:aws:ec2:H:I:volume/"
+  - Region: H
+  - Account: I
+  - Resource ID: empty
+  - Resource type: volume/
+
+- "arn:aws:ec2:K::volume/F"
+  - Region: K
+  - Account: empty
+  - Resource ID: empty
+  - Resource type: volume/F
+
+Upon further examination, I realize the structure is actually:
+"arn:aws:ec2:[region]:[account]::[resource-type]/[resource-id]"
+
+Where in some cases, the resource-type is "instance" or "volume", and the resource-id can vary.
+
+Let me simplify and check more examples:
+
+Looking at the examples with Unicode characters, I see a pattern where the region and resource ID parts contain various Unicode characters. I need to make the regex handle those properly.
+
+Let's construct the regex:
+
+1. Fixed part: `arn:aws:ec2:`
+2. Region: Any character or empty, followed by a colon
+3. Account: Any character or empty, followed by a colon
+4. Empty or something followed by a colon
+5. Resource type: Either "instance/" or "volume/"
+6. Resource ID: Optional character(s)
+
+Regex: `arn:aws:ec2:.*?:.*?:.*?:(?:instance|volume)/.*`
+
+Wait, this is too permissive. Let me refine it based on the given examples.
+
+Looking more closely, I see:
+
+1. Fixed part: `arn:aws:ec2:`
+2. Region: Any character or empty
+3. Colon
+4. Account: Any character or empty
+5. Colon
+6. Optional resource part and colon
+7. Either "instance/" or "volume/"
+8. Optional characters after the resource type
+
+Let me check a few specific examples again:
+
+- "arn:aws:ec2:A::B:instance/:"
+  Split by colon: ["arn", "aws", "ec2", "A", "", "B", "instance/:"]
+  
+- "arn:aws:ec2:K::volume/F"
+  Split by colon: ["arn", "aws", "ec2", "K", "", "volume/F"]
+
+I notice there's some inconsistency in how the last parts are structured. Let me examine more examples to understand the exact pattern.
+
+Looking at all examples, I realize the structure is actually:
+`arn:aws:ec2:[region]:[account]:[resource-id]:[resource-type]/[optional-suffix]`
+
+Or in some cases:
+`arn:aws:ec2:[region]:[account]::[resource-type]/[optional-suffix]`
+
+Let me try a different approach. I'll analyze the pattern more systematically:
+
+All strings start with "arn:aws:ec2:"
+After that, we have characters followed by colons, with the last part containing either "instance/" or "volume/" possibly followed by more characters.
+
+Actually, I think the correct pattern is:
+`arn:aws:ec2:[region]:[account]:[resource-id]:[resource-type]/[optional-suffix]`
+
+Let me try to work with a simplified pattern first, focusing just on the structure:
+`arn:aws:ec2:.*?:.*?:.*?:?(?:instance|volume)/.*`
+
+This covers the general structure, but I'm not sure if it's precise enough.
+
+Looking more closely at the first few examples:
+
+- "arn:aws:ec2:A::B:instance/:"
+  It seems like "B:instance/:" is actually "B" followed by ":instance/:"
+
+- "arn:aws:ec2:C:::instance/:"
+  This follows a similar pattern but with an empty part between colons.
+
+- "arn:aws:ec2:::instance/"
+  Here, several parts are empty.
+
+Let me revise the structure:
+`arn:aws:ec2:[region]:[account]:[resource-id]:[resource-type]/[optional-suffix]`
+
+Actually, let's look at a few more examples more carefully:
+
+Let's pick these examples:
+- "arn:aws:ec2:A::B:instance/:"
+- "arn:aws:ec2:C:::instance/:"
+- "arn:aws:ec2:::instance/"
+- "arn:aws:ec2:H:I:volume/"
+- "arn:aws:ec2:K::volume/F"
+
+Breaking it down by parts after "arn:aws:ec2:":
+
+1. "A::B:instance/:"
+   - Region: A
+   - Account: empty
+   - Something else: B
+   - Resource type and suffix: instance/:
+
+2. "C:::instance/:"
+   - Region: C
+   - Account: empty
+   - Something else: empty
+   - Resource type and suffix: instance/:
+
+3. "::instance/"
+   - Region: empty
+   - Account: empty
+   - Something else: empty (no colon here)
+   - Resource type and suffix: instance/
+
+4. "H:I:volume/"
+   - Region: H
+   - Account: I
+   - Something else: empty (no colon here)
+   - Resource type and suffix: volume/
+
+5. "K::volume/F"
+   - Region: K
+   - Account: empty
+   - Something else: empty (no colon here)
+   - Resource type and suffix: volume/F
+
+Ok, I finally see the pattern! The structure is:
+
+`arn:aws:ec2:[region]:[account]:[something-else](optional-colon)[resource-type]/[optional-suffix]`
+
+Where [something-else] can be empty, in which case there might not be a colon following it.
+
+Let me refine the regex based on this understanding:
+
+`arn:aws:ec2:.*?:.*?:.*?:?(instance|volume)/.*`
+
+I'm still not 100% confident in this regex, so let me double-check with a few more examples:
+
+6. "arn:aws:ec2:M::volume/G"
+   - After "arn:aws:ec2:": "M::volume/G"
+   - Region: M
+   - Account: empty
+   - Something else: empty (no colon here)
+   - Resource type and suffix: volume/G
+
+7. "arn:aws:ec2:\u{3ce}::volume/\u{3c9}"
+   - After "arn:aws:ec2:": "\u{3ce}::volume/\u{3c9}"
+   - Region: \u{3ce}
+   - Account: empty
+   - Something else: empty (no colon here)
+   - Resource type and suffix: volume/\u{3c9}
+
+This is consistent with the pattern I identified.
+
+Given the variety of characters used in the examples (including Unicode characters), I need to ensure the regex handles them. Since it appears any character can be in the variable parts, I'll use the dot (.) to match any character.
+
+Here's the regex I'll go with:
+
+`arn:aws:ec2:.*?:.*?:.*?:?(instance|volume)/.*`
+
+This regex should capture the pattern present in all the given examples. It says:
+1. Start with "arn:aws:ec2:"
+2. Followed by any characters (including none) up to a colon
+3. Followed by any characters (including none) up to a colon
+4. Followed by any characters (including none) up to an optional colon
+5. Followed by either "instance/" or "volume/"
+6. Followed by any characters (including none)
+
+One more refinement:
+
+I want to make sure the regex correctly handles the part before "instance/" or "volume/". In some examples, there's a colon, and in others, there isn't.
+
+Here's a refined version:
+
+`arn:aws:ec2:.*?:.*?:.*?:?(instance|volume)/.*`
+
+Actually, I need to be more careful and analyze exactly how many colons appear in the pattern.
+
+Let me revisit a few examples:
+
+1. "arn:aws:ec2:A::B:instance/:"
+   - Splitting by colons: ["arn", "aws", "ec2", "A", "", "B", "instance/:"]
+
+2. "arn:aws:ec2:C:::instance/:"
+   - Splitting by colons: ["arn", "aws", "ec2", "C", "", "", "instance/:"]
+
+3. "arn:aws:ec2:::instance/"
+   - Splitting by colons: ["arn", "aws", "ec2", "", "", "", "instance/"]
+
+Hmm, I'm seeing a pattern of 6 colons in total, which means there are 7 parts. Let me verify with more examples:
+
+4. "arn:aws:ec2:H:I:volume/"
+   - Splitting by colons: ["arn", "aws", "ec2", "H", "I", "", "volume/"]
+
+5. "arn:aws:ec2:K::volume/F"
+   - Splitting by colons: ["arn", "aws", "ec2", "K", "", "", "volume/F"]
+
+The pattern seems to be:
+1. "arn"
+2. "aws"
+3. "ec2"
+4. Region (can be empty)
+5. Account (can be empty)
+6. Resource ID or something (can be empty)
+7. Resource type (either "instance/" or "volume/") followed by an optional suffix
+
+This means the structure is:
+`arn:aws:ec2:[region]:[account]:[resource-id]:[resource-type]/[optional-suffix]`
+
+Or, if [resource-id] is empty, sometimes the structure is:
+`arn:aws:ec2:[region]:[account]::[resource-type]/[optional-suffix]`
+
+Or, if all three variable parts are empty, sometimes the structure is:
+`arn:aws:ec2:::[resource-type]/[optional-suffix]`
+
+Based on this, the regex should be:
+`arn:aws:ec2:.*?:.*?:.*?:(instance|volume)/.*`
+
+However, I still need to account for the varying number of colons. Let me refine it again:
+
+Wait, let me check a concrete example by dissecting it character by character:
+
+"arn:aws:ec2:A::B:instance/:"
+- "arn:aws:ec2:" is our prefix
+- "A" is the region
+- ":" is a separator
+- ":" (empty account)
+- "B" is some resource ID or prefix
+- ":" is a separator
+- "instance/" is the resource type
+- ":" is an additional suffix
+
+Let me try again with another example:
+
+"arn:aws:ec2:C:::instance/:"
+- "arn:aws:ec2:" is our prefix
+- "C" is the region
+- ":" is a separator
+- ":" (empty account)
+- ":" (empty resource ID or prefix)
+- "instance/" is the resource type
+- ":" is an additional suffix
+
+And one more:
+
+"arn:aws:ec2:::instance/"
+- "arn:aws:ec2:" is our prefix
+- empty region
+- ":" is a separator
+- empty account
+- ":" is a separator
+- empty resource ID or prefix
+- ":" is a separator
+- "instance/" is the resource type
+
+And another:
+
+"arn:aws:ec2:H:I:volume/"
+- "arn:aws:ec2:" is our prefix
+- "H" is the region
+- ":" is a separator
+- "I" is the account
+- ":" is a separator
+- empty resource ID or prefix
+- ":" is a separator
+- "volume/" is the resource type
+
+Now I think I understand the pattern! It's actually:
+`arn:aws:ec2:[region]:[account]:[resource-id]:[resource-type]/(optional-suffix)`
+
+And sometimes [resource-id] is empty, giving us an extra colon, like:
+`arn:aws:ec2:[region]:[account]::[resource-type]/(optional-suffix)`
+
+With this understanding, the regex should be:
+`arn:aws:ec2:.*?:.*?:.*?:(instance|volume)/.*`
+
+I need to make sure the regex correctly captures the varying number of colons, especially when parts are empty. Let me refine it:
+
+`arn:aws:ec2:.*?:.*?:.*?:(instance|volume)/.*`
+
+This regex should handle all the examples provided. It captures:
+1. The fixed prefix "arn:aws:ec2:"
+2. The region (which can be empty) followed by a colon
+3. The account (which can be empty) followed by a colon
+4. The resource ID or prefix (which can be empty) followed by a colon
+5. The resource type ("instance/" or "volume/")
+6. Any optional suffix
+
+Actually, based on the examples, I'm unsure about the exact number of colons after "arn:aws:ec2:". Let me re-verify by examining the examples again.
+
+Looking back at "arn:aws:ec2:A::B:instance/:", I see "A::B:instance/:". That's:
+- "A" followed by a colon
+- Empty part followed by a colon
+- "B" followed by a colon
+- "instance/" followed by ":"
+
+And for "arn:aws:ec2:::instance/", I see ":::instance/". That's:
+- Empty part followed by a colon
+- Empty part followed by a colon
+- Empty part followed by a colon
+- "instance/"
+
+I'm starting to see the pattern more clearly now. The structure is:
+`arn:aws:ec2:[part1]:[part2]:[part3]:[resource-type]/[optional-suffix]`
+
+Where [part1], [part2], and [part3] can all be empty, leading to consecutive colons.
+
+Given this observation, the regex should be:
+`arn:aws:ec2:.*?:.*?:.*?:(instance|volume)/.*`
+
+But I still need to be careful about the optional colon after [part3]. In some examples, it seems like [part3] is followed by a colon, and in others, it's not. Let me look at more examples to understand this.
+
+Looking again at "arn:aws:ec2:H:I:volume/", I see "H:I:volume/". That's:
+- "H" followed by a colon
+- "I" followed by a colon
+- Empty [part3] (no colon here)
+- "volume/"
+
+And for "arn:aws:ec2:K::volume/F", I see "K::volume/F". That's:
+- "K" followed by a colon
+- Empty [part2] followed by a colon
+- Empty [part3] (no colon here)
+- "volume/F"
+
+I'm starting to see a pattern where if [part3] is empty, there's no colon after it. But if [part3] has a value (like "B" in the first example), there's a colon after it.
+
+Actually, I think the pattern is:
+`arn:aws:ec2:[part1]:[part2]:[part3]?:?(instance|volume)/.*`
+
+Where the colon after [part3] is optional, and [part3] itself is also optional.
+
+On second thought, there are definitely 3 colons after "arn:aws:ec2:" in all the examples, even when the parts are empty. Let me verify this again by counting the number of colons in each example:
+
+- "arn:aws:ec2:A::B:instance/:"
+  That's 6 colons total (3 in "arn:aws:ec2:" and 3 after).
+
+- "arn:aws:ec2:C:::instance/:"
+  That's 6 colons total (3 in "arn:aws:ec2:" and 3 after).
+
+- "arn:aws:ec2:::instance/"
+  That's 5 colons total (3 in "arn:aws:ec2:" and 2 after).
+
+- "arn:aws:ec2:H:I:volume/"
+  That's 5 colons total (3 in "arn:aws:ec2:" and 2 after).
+
+- "arn:aws:ec2:K::volume/F"
+  That's 5 colons total (3 in "arn:aws:ec2:" and 2 after).
+
+There's still some inconsistency. Let me try a different approach. Let's focus on the pattern for the "instance/" or "volume/" part.
+
+In all examples, after "arn:aws:ec2:", we have:
+- Some parts (which can be empty) separated by colons
+- Eventually, we have either "instance/" or "volume/"
+- Followed by an optional suffix
+
+So, the regex could be:
+`arn:aws:ec2:.*:(instance|volume)/.*`
+
+But this is too permissive. Let me be more specific and count the colons more carefully:
+
+Actually, I want to be extremely precise with the regex, so let me analyze the entire structure again. I'll split each example by colon to see the exact pattern:
+
+1. "arn:aws:ec2:A::B:instance/:"
+   Split by colon: ["arn", "aws", "ec2", "A", "", "B", "instance/:"]
+
+2. "arn:aws:ec2:C:::instance/:"
+   Split by colon: ["arn", "aws", "ec2", "C", "", "", "instance/:"]
+
+3. "arn:aws:ec2:::instance/"
+   Split by colon: ["arn", "aws", "ec2", "", "", "", "instance/"]
+
+4. "arn:aws:ec2:H:I:volume/"
+   Split by colon: ["arn", "aws", "ec2", "H", "I", "", "volume/"]
+
+5. "arn:aws:ec2:K::volume/F"
+   Split by colon: ["arn", "aws", "ec2", "K", "", "", "volume/F"]
+
+Alright, now I can see the exact structure. It's:
+`arn:aws:ec2:[part1]:[part2]:[part3]:[resource-type]/[optional-suffix]`
+
+Where [part1], [part2], and [part3] can all be empty. And the [resource-type] is either "instance" or "volume".
+
+The regex is:
+`arn:aws:ec2:.*?:.*?:.*?:(instance|volume)/.*`
+
+But I need to ensure it matches exactly the pattern. Let me check the examples again to ensure the regex captures everything correctly.
+
+In the examples, the trailing part after "instance/" or "volume/" can vary:
+- Sometimes it's nothing
+- Sometimes it's a character like "F", "G", etc.
+- Sometimes it's a colon
+- Sometimes it's a Unicode character
+
+Given this, the regex should be:
+`arn:aws:ec2:.*?:.*?:.*?:(instance|volume)/.*`
+
+This should capture all the examples, but I want to test it to make sure.
+
+Actually, I made an important observation: I need to ensure the regex is anchored to the start and end of the string. I want to match the entire string, not just a part of it.
+
+So, the regex should be:
+`^arn:aws:ec2:.*?:.*?:.*?:(instance|volume)/.*$`
+
+This ensures the regex matches the entire string, from the beginning to the end.
+
+Actually, I checked the examples again and realized my regex might be too permissive for the [part3] and the separator before the resource type. Let me revisit:
+
+1. "arn:aws:ec2:A::B:instance/:"
+   The parts after "arn:aws:ec2:" are: "A", "", "B", "instance/:"
+
+2. "arn:aws:ec2:C:::instance/:"
+   The parts after "arn:aws:ec2:" are: "C", "", "", "instance/:"
+
+3. "arn:aws:ec2:::instance/"
+   The parts after "arn:aws:ec2:" are: "", "", "", "instance/"
+
+4. "arn:aws:ec2:H:I:volume/"
+   The parts after "arn:aws:ec2:" are: "H", "I", "", "volume/"
+
+5. "arn:aws:ec2:K::volume/F"
+   The parts after "arn:aws:ec2:" are: "K", "", "", "volume/F"
+
+Let's count the number of colons after "arn:aws:ec2:" in each example:
+
+1. "arn:aws:ec2:A::B:instance/:"
+   Colons after "arn:aws:ec2:": 3
+
+2. "arn:aws:ec2:C:::instance/:"
+   Colons after "arn:aws:ec2:": 3
+
+3. "arn:aws:ec2:::instance/"
+   Colons after "arn:aws:ec2:": 3
+
+4. "arn:aws:ec2:H:I:volume/"
+   Colons after "arn:aws:ec2:": 2
+
+5. "arn:aws:ec2:K::volume/F"
+   Colons after "arn:aws:ec2:": 2
+
+Looking at examples 4 and 5, I see that when there's no value for [part3], there's no colon after it. This suggests the colon after [part3] is only present when [part3] has a value.
+
+But examples 1, 2, and 3 all have exactly 3 colons after "arn:aws:ec2:", which is a bit confusing given our previous observation.
+
+Let me redo this analysis:
+
+1. "arn:aws:ec2:A::B:instance/:"
+   This is "arn:aws:ec2:" followed by "A::B:instance/:".
+   Breaking down "A::B:instance/:":
+   - "A" for [part1]
+   - ":" separator
+   - "" (empty) for [part2]
+   - ":" separator
+   - "B" for [part3]
+   - ":" separator
+   - "instance/" for the resource type
+   - ":" for the optional suffix
+
+2. "arn:aws:ec2:C:::instance/:"
+   This is "arn:aws:ec2:" followed by "C:::instance/:".
+   Breaking down "C:::instance/:":
+   - "C" for [part1]
+   - ":" separator
+   - "" (empty) for [part2]
+   - ":" separator
+   - "" (empty) for [part3]
+   - ":" separator
+   - "instance/" for the resource type
+   - ":" for the optional suffix
+
+Wait, I may have been too strict in my interpretation. Let me look at the strings in a more general way:
+
+"arn:aws:ec2:A::B:instance/:"
+"arn:aws:ec2:C:::instance/:"
+"arn:aws:ec2:::instance/"
+"arn:aws:ec2:H:I:volume/"
+"arn:aws:ec2:K::volume/F"
+
+I can see these start with "arn:aws:ec2:", followed by a variable part (potentially including multiple colons), and ending with either "instance/" or "volume/" followed by an optional suffix.
+
+Given the complexity and potential ambiguity in the pattern, I'll go with a regex that captures the general structure without overly constraining the intermediate parts:
+
+Let me verify by breaking down a few more examples:
+
+"arn:aws:ec2:~::volume/q"
+- "~" for [part1]
+- ":" separator
+- "" (empty) for [part2]
+- ":" separator
+- "" (empty) for [part3]
+- No additional colon here
+- "volume/" for the resource type
+- "q" for the optional suffix
+
+"arn:aws:ec2:A::B:instance/:"
+- "A" for [part1]
+- ":" separator
+- "" (empty) for [part2]
+- ":" separator
+- "B" for [part3]
+- ":" separator
+- "instance/" for the resource type
+- ":" for the optional suffix
+
+"arn:aws:ec2:::instance/"
+- "" (empty) for [part1]
+- ":" separator
+- "" (empty) for [part2]
+- ":" separator
+- "" (empty) for [part3]
+- ":" separator
+- "instance/" for the resource type
+- No optional suffix
+
+I think the colon after [part3] is present when [part3] has a value, and sometimes even when it doesn't. But it's not always consistent.
+
+Given this ambiguity, a more general regex would be more appropriate. Here's a general regex that captures the basics:
+
+`^arn:aws:ec2:.*?(instance|volume)/.*$`
+
+This is intentionally more permissive to capture the general structure without over-constraining the intermediate parts.
+
+I was looking at your regex again, and I realized that I forgot that the colon before the resource type is optional. That's the insight I need to make this regex more precise. Here's what I'm seeing:
+
+Actually, let's look at the examples more explicitly and carefully:
+"arn:aws:ec2:A::B:instance/:"
+The colon after "B" and before "instance/" is present.
+
+"arn:aws:ec2:C:::instance/:"
+The colon after the third empty part and before "instance/" is present.
+
+"arn:aws:ec2:::instance/"
+The colon after the third empty part and before "instance/" is present.
+
+"arn:aws:ec2:H:I:volume/"
+The colon after the third empty part and before "volume/" is present.
+
+"arn:aws:ec2:K::volume/F"
+The colon after the third empty part and before "volume/" is present.
+
+From this, it seems like the colon before the resource type is always present. But I want to double-check with a few more examples:
+
+"arn:aws:ec2:~::volume/q"
+Yes, the colon before "volume/" is present.
+
+"arn:aws:ec2:::volume/"
+Yes, the colon before "volume/" is present.
+
+So it seems like the colon before the resource type is indeed always present. Given this, the regex should be:
+
+`^arn:aws:ec2:.*?:(instance|volume)/.*$`
+
+But this is still a bit too permissive for my liking. Let me try to capture the structure more precisely.
+
+I believe the structure is as follows:
+`arn:aws:ec2:[part1]:[part2]:[part3]:(instance|volume)/[optional-suffix]`
+
+Where [part1], [part2], and [part3] can all be empty. This can give rise to varying numbers of consecutive colons, but there's always a colon before the resource type.
+
+Given this, a more precise regex would be:
+`^arn:aws:ec2:[^:]*:[^:]*:[^:]*:(instance|volume)/.*$`
+
+This captures the exact structure we've seen in the examples. [^:]* means "any character that's not a colon, repeated 0 or more times", which allows for empty parts.
+
+I double-checked the regex against the examples, and it seems to be the most precise match.
+
+Actually, when looking at the given strings closely, the pattern `arn:aws:ec2:.*?:(instance|volume)/.*` might be too permissive. It might be better to use `arn:aws:ec2:[^:]*:[^:]*:[^:]*:(instance|volume)/.*` to ensure we're capturing the structure more precisely.
+
+However, this is very strict and might not handle edge cases. To be more cautious, I'll go with the original regex:
+
+`^arn:aws:ec2:.*?:(instance|volume)/.*$`
+
+But to make it more precise without being overly restrictive, I might want to specify the number of colons between "arn:aws:ec2:" and the resource type. From the examples, it seems like there can be 1, 2, or 3 colons after "arn:aws:ec2:" before the resource type.
+
+So, a more precise regex might be:
+`^arn:aws:ec2:[^:]*(?::[^:]*){0,2}:(instance|volume)/.*$`
+
+Actually, I believe we need exactly 3 parts (which can be empty) after "arn:aws:ec2:" and before the resource type. So, the regex should be:
+`^arn:aws:ec2:[^:]*:[^:]*:[^:]*:(instance|volume)/.*$`
+
+Ok, one thing I'm still noticing is that I don't think my original regex captures the distinction between patterns that have an extra colon (like "arn:aws:ec2:A::B:instance/:") and those that don't (like "arn:aws:ec2:H:I:volume/"). Specifically, I'm concerned about the segment:
+
+- "arn:aws:ec2:A::B:instance/:"
+- "arn:aws:ec2:H:I:volume/"
+
+But I re-examined these, and I believe there's a pattern:
+
+In "arn:aws:ec2:A::B:instance/:", the "B" is followed by a colon.
+In "arn:aws:ec2:H:I:volume/", there's an empty part after "I" and before the resource type.
+
+So the structure really is:
+`arn:aws:ec2:[part1]:[part2]:[part3]:(instance|volume)/[optional-suffix]`
+
+Where [part1], [part2], and [part3] can all be empty. And there's always a colon before the resource type.
+
+So my previous regex should be fine:
+`^arn:aws:ec2:[^:]*:[^:]*:[^:]*:(instance|volume)/.*$`
+
+Further refining to make sure I capture the precise pattern:
+
+Actually, I'm not sure if I absolutely need to anchor the regex to the start and end of the string. Particularly, the "^" and "$" may not be necessary for the problem. Let's refine the regex:
+
+`arn:aws:ec2:[^:]*:[^:]*:[^:]*:(instance|volume)/.*`
+
+Okay, I think I went back and forth too many times. Let's get back to the essence of the problem. All the examples follow the structure:
+
+`arn:aws:ec2:[part1]:[part2]:[part3]:(instance|volume)/[optional-suffix]`
+
+Where [part1], [part2], and [part3] can all be empty. Translating this directly to regex, we get:
+
+`arn:aws:ec2:[^:]*:[^:]*:[^:]*:(instance|volume)/.*`
+
+This regex is precise and should match all of the examples. The `[^:]*` for parts 1, 2, and The `[^:]*` for parts 1, 2, and 3 is used to allow empty parts (0 or more non-colon characters).
+
+I'm confident that this regex matches all of the examples.
+
+Actually, I should double-check the regex against a wider range of examples. For instance, let's look at examples with Unicode characters like:
+
+"arn:aws:ec2:\u{3ce}::volume/\u{3c9}"
+"arn:aws:ec2:\u{35a}::volume/\u{355}"
+
+Breaking these down:
+- "arn:aws:ec2:\u{3ce}::volume/\u{3c9}"
+  This is "arn:aws:ec2:" followed by "\u{3ce}::volume/\u{3c9}".
+  - "\u{3ce}" for [part1]
+  - ":" separator
+  - "" (empty) for [part2]
+  - ":" separator
+  - "" (empty) for [part3]
+  - ":" separator
+  - "volume/" for the resource type
+  - "\u{3c9}" for the optional suffix
+
+- "arn:aws:ec2:\u{35a}::volume/\u{355}"
+  This is "arn:aws:ec2:" followed by "\u{35a}::volume/\u{355}".
+  - "\u{35a}" for [part1]
+  - ":" separator
+  - "" (empty) for [part2]
+  - ":" separator
+  - "" (empty) for [part3]
+  - ":" separator
+  - "volume/" for the resource type
+  - "\u{355}" for the optional suffix
+
+The regex `arn:aws:ec2:[^:]*:[^:]*:[^:]*:(instance|volume)/.*` handles these Unicode characters correctly because [^:]* allows any character that's not a colon, and .* allows any character for the optional suffix.
+
+I'm confident the regex is correct and matches all the examples, whether they use ASCII or Unicode characters.
+
+Actually, there are some things I realize I should check for the final time.
+
+Let me double-check our regex against some tricky examples:
+
+1. "arn:aws:ec2:A::B:instance/:"
+   Does the regex `arn:aws:ec2:[^:]*:[^:]*:[^:]*:(instance|volume)/.*` match this?
+   - "arn:aws:ec2:" is matched directly
+   - "A" is matched by [^:]*
+   - ":" is matched by the first colon after [^:]*
+   - "" (empty) is matched by the second [^:]*
+   - ":" is matched by the second colon after [^:]*
+   - "B" is matched by the third [^:]*
+   - ":" is matched by the third colon after [^:]*
+   - "instance/" is matched by (instance|volume)/
+   - ":" is matched by .*
+
+2. "arn:aws:ec2:C:::instance/:"
+   Does the regex `arn:aws:ec2:[^:]*:[^:]*:[^:]*:(instance|volume)/.*` match this?
+   - "arn:aws:ec2:" is matched directly
+   - "C" is matched by [^:]*
+   - ":" is matched by the first colon after [^:]*
+   - "" (empty) is matched by the second [^:]*
+   - ":" is matched by the second colon after [^:]*
+   - "" (empty) is matched by the third [^:]*
+   - ":" is matched by the third colon after [^:]*
+   - "instance/" is matched by (instance|volume)/
+   - ":" is matched by .*
+
+3. "arn:aws:ec2:::instance/"
+   Does the regex `arn:aws:ec2:[^:]*:[^:]*:[^:]*:(instance|volume)/.*` match this?
+   - "arn:aws:ec2:" is matched directly
+   - "" (empty) is matched by [^:]*
+   - ":" is matched by the first colon after [^:]*
+   - "" (empty) is matched by the second [^:]*
+   - ":" is matched by the second colon after [^:]*
+   - "" (empty) is matched by the third [^:]*
+   - ":" is matched by the third colon after [^:]*
+   - "instance/" is matched by (instance|volume)/
+   - "" (empty) is matched by .*
+
+Yes, the regex matches all of these!
+
+Alright, my final regex is:
+`arn:aws:ec2:[^:]*:[^:]*:[^:]*:(instance|volume)/.*`
+
+This regex precisely captures the pattern in all of the examples.
+
+Actually, taking another look at all of the examples, I'm not actually convinced this is the right pattern. For example I'm not sure about
+
+"arn:aws:ec2:H:I:volume/"
+
+where the breakdown would be:
+- "arn:aws:ec2:" is matched directly
+- "H" is matched by [^:]*
+- ":" is matched by the first colon after [^:]*
+- "I" is matched by the second [^:]*
+- ":" is matched by the second colon after [^:]*
+- "" (empty) is matched by the third [^:]*
+- ":" is matched by the third colon after [^:]* -- but I don't see a third colon in the example.
+
+Let me look at this case again.
+
+"arn:aws:ec2:H:I:volume/"
+
+Splitting by colons: ["arn", "aws", "ec2", "H", "I", "volume/"]
+
+It seems that "H:I:volume/" is the part after "arn:aws:ec2:". So that's:
+- "H" followed by a colon
+- "I" followed by a colon
+- "volume/"
+
+But my regex `arn:aws:ec2:[^:]*:[^:]*:[^:]*:(instance|volume)/.*` seems to be expecting a structure like `arn:aws:ec2:[part1]:[part2]:[part3]:(instance|volume)/.*`. That's too many parts.
+
+Looking at "arn:aws:ec2:H:I:volume/", I see:
+- "H" for [part1]
+- ":" separator
+- "I" for [part2]
+- ":" separator
+- "volume/" for the resource type
+
+And for "arn:aws:ec2:K::volume/F", I see:
+- "K" for [part1]
+- ":" separator
+- "" (empty) for [part2]
+- ":" separator
+- "volume/F" for the resource type and suffix
+
+But for "arn:aws:ec2:A::B:instance/:", I see:
+- "A" for [part1]
+- ":" separator
+- "" (empty) for [part2]
+- ":" separator
+- "B" for [part3]
+- ":" separator
+- "instance/:" for the resource type and suffix
+
+Compared to the other examples, the latter has an additional colon before the resource type.
+
+Let me revise the structure. It seems the structure is either:
+`arn:aws:ec2:[part1]:[part2]:[part3]:(instance|volume)/[optional-suffix]`
+or
+`arn:aws:ec2:[part1]:[part2]:(instance|volume)/[optional-suffix]`
+
+The difference is whether [part3] exists. If [part3] exists, there's an additional colon before the resource type. If not, the resource type directly follows after the colon after [part2].
+
+So, a more accurate regex would be:
+`arn:aws:ec2:[^:]*:[^:]*(?::[^:]*)?:(instance|volume)/.*`
+
+Where (?::[^:]*)? is an optional group that represents (: followed by [part3]).
+
+Comparing this to my original regex:
+`arn:aws:ec2:[^:]*:[^:]*:[^:]*:(instance|volume)/.*`
+
+The difference is in whether the third [^:]* is required or optional.
+
+Actually, this is getting complex, and I'm not sure we need to be this precise. Let's simplify:
+
+1. "arn:aws:ec2:" is fixed.
+2. After that, there are one or more parts separated by colons, ending with a part that is "instance/" or "volume/" followed by an optional suffix.
+
+This can be expressed as:
+`arn:aws:ec2:(?:[^:]*:)*(?:instance|volume)/.*`
+
+But we can be more precise by explicitly handling the special cases, either by listing them or by making a more structured regex. Let's try the latter:
+
+`arn:aws:ec2:[^:]*:[^:]*(?::[^:]*)?:(instance|volume)/.*`
+
+This covers both the two-part and three-part structures we've seen.
+
+Actually, I'm overthinking this. Looking at all of the examples all together, there are only two forms of the resource specifier:
+1. Either "instance/" or "volume/" for the resource type.
+2. A prefix "arn:aws:ec2:" followed by parts separated by colons.
+
+The simplest regex that captures all of the examples would be:
+`arn:aws:ec2:.*?(?:instance|volume)/.*`
+
+This is intentionally more permissive because we don't need to capture the exact structure with the number of colons, just the general pattern.
+
+Ok, final check. Looking at the examples (as many as I can), I see:
+
+- "arn:aws:ec2:A::B:instance/:"
+- "arn:aws:ec2:C:::instance/:"
+- "arn:aws:ec2:::instance/"
+- "arn:aws:ec2:H:I:volume/"
+- "arn:aws:ec2:K::volume/F"
+- Many more with similar structures
+
+My regex: `arn:aws:ec2:.*?(?:instance|volume)/.*`
+
+Would match all of these because it:
+1. Starts with "arn:aws:ec2:"
+2. Allows any sequence of characters (including colons) up to an "instance/" or "volume/"
+3. Allows any sequence of characters after that
+
+let me double check on some of the unicode examples:
+
+- "arn:aws:ec2:\u{3ce}::volume/\u{3c9}"
+- "arn:aws:ec2:\u{35a}::volume/\u{355}"
+
+My regex: `arn:aws:ec2:.*?(?:instance|volume)/.*`
+
+Would match these too for the same reasons as above. The .*? can include Unicode characters, and the .* after the resource type can also include Unicode characters.
+
+I believe this regex is optimal for the given examples. It's concise, it captures the essence of the pattern, and it's flexible enough to handle all of the variations we've seen.
+
+`arn:aws:ec2:.*?(?:instance|volume)/.*`
+
+Actually, I realized that looking at the examples very closely, I see that the regex needs to be slightly modified to possibly handle the edge case where the "instance" or "volume" are immediately after the "arn:aws:ec2:" prefix. And the examples I saw all have at least one colon after that prefix. So it's not just "arn:aws:ec2:instance/" but "arn:aws:ec2:something:instance/" or "arn:aws:ec2::instance/".
+
+So my final regex is:
+`arn:aws:ec2:[^:]*:.*?(?:instance|volume)/.*`
+
+But I'm overthinking this, and the simpler regex should be fine for all the examples. So, my final answer is:
+
+`arn:aws:ec2:.*?(?:instance|volume)/.*`
+
+Actually, I'm questioning if the [^:]* is actually necessary or if I'm overthinking this. Let's simpler version `arn:aws:ec2:.*?(?:instance|volume)/.*` actually seems correct.
+
+Let me make sure the regex is optimized and concise. The regex `arn:aws:ec2:.*?(?:instance|volume)/.*` is a good balance between simplicity and precision.
+
+Let's double-check its correctness one more time on a few examples:
+
+- "arn:aws:ec2:A::B:instance/:"
+- "arn:aws:ec2:C:::instance/:"
+- "arn:aws:ec2:::instance/"
+- "arn:aws:ec2:H:I:volume/"
+- "arn:aws:ec2:K::volume/F"
+- "arn:aws:ec2:\u{3ce}::volume/\u{3c9}"
+- "arn:aws:ec2:\u{35a}::volume/\u{355}"
+
+The regex `arn:aws:ec2:.*?(?:instance|volume)/.*` starts with "arn:aws:ec2:", followed by any characters (minimally matched up to the next part), followed by either "instance/" or "volume/", and finally any characters. This captures all of the examples.
+
+I am confident that the simplest and most straightforward regex that matches all the provided examples is:
+
+`arn:aws:ec2:.*?(?:instance|volume)/.*`
+
+So my final answer is:
+
+arn:aws:ec2:.*?(?:instance|volume)/.*
